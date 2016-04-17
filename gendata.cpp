@@ -22,6 +22,10 @@ http://zhidao.baidu.com/question/303841146109528764.html?qbl=relate_question_2&w
 追答：随机数种子初始化只需一次，反复初始化就会产生重复的数字。
 
 */
+#define N 250000
+#define MED 30000
+#define LOW 50000
+#define HIGH 100000
 
 #include<iostream>
 #include<vector>
@@ -29,6 +33,9 @@ http://zhidao.baidu.com/question/303841146109528764.html?qbl=relate_question_2&w
 #include<ctime>
 #include<cstdlib>
 #include<fstream>
+
+#include "read_create.h"
+#include "partition.h"
 
 using namespace std;
 
@@ -103,7 +110,7 @@ gen_year()
 };
 	
 void 
-gen_data(int N)	// N <= 100,000,000. Records number
+gen_data(long Num)	// N <= 100,000,000. Records number
 {
 	ofstream output;
 	output.clear();
@@ -113,7 +120,7 @@ gen_data(int N)	// N <= 100,000,000. Records number
 		cout << "Error creating output datafile!\n";
 	
 	srand((unsigned)time(NULL));
-	for(int k=0; k<N; ++k){
+	for(long k=0; k<Num; ++k){
 		output << gen_VIN() << " "
 			<< gen_mile() << " "
 			<< gen_Manu() << " "
@@ -127,7 +134,67 @@ gen_data(int N)	// N <= 100,000,000. Records number
 }
 
 int main(){
-	gen_data(50);
-		
+
+	gen_data(N);
+	
+	vector<string> VIN;
+	vector<int> mile;
+	vector<string> make;
+	vector<string> color;
+	vector<int> year;
+	
+	double duration=0.0;
+	
+	read(VIN, mile, make, color, year);
+/*
+	for(int k=0; k<50; ++k)
+		cout << mile[k] << endl;
+	
+	CrackInTwo(mile, 0, N-1, MED);
+	cout << "Cracking Two completed\n\n";
+*/
+	cout << "N = " << N << endl;
+	duration = MergeInThree(mile, LOW, HIGH);
+	cout << "MergeInThree takes " << duration << " second.\n";
+	
+	duration = MergeInTwo(mile, MED);
+	cout << "MergeInTwo takes " << duration << " second.\n";
+
+	/*	for(int k=0; k<50; ++k)
+		cout << mile[k] << endl;
+	
+	CrackInThree(mile, 0, N-1, LOW, HIGH);
+//	cout << "Cracking Three1 completed\n\n";
+	
+	
+	//CrackInThree(mile, 0, N-1, 20000, 69999);
+	CrackInThree(mile, 0, N-1, LOW, 140000);
+//	cout << "Cracking Three2 completed\n\n";
+	
+	CrackInThree(mile, 0, N-1, LOW, 140000);
+	
+	cout << "\n\n";
+	
+	for(int k=0; k<50; ++k)
+	cout << mile[k] << endl;
+	
+	CrackInThree(mile, 0, N-1, -0, 120000);
+	cout << "\n\n";
+	for(int k=0; k<mile.size(); ++k)
+	cout << mile[k] << endl;
+	
+	CrackInThree(mile, 0, N-1, -40000, 100000);
+	cout << "\n\n";
+	for(int k=0; k<mile.size(); ++k)
+	{
+	cout << mile[k] << endl;
+	}
+
+	CrackInThree(mile, 0, N-1, -70000, 130000);
+	cout << "\n\n";
+	for(int k=0; k<mile.size(); ++k)
+	cout << mile[k] << endl;
+*/	
+	
 	return 0;
 }

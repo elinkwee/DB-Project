@@ -1,10 +1,11 @@
 
-/*
+
 #include<iostream>
 #include<vector>
 #include<string>
 #include<fstream>
-*/
+#include<cstdlib>
+
 
 using namespace std;
 
@@ -33,7 +34,7 @@ read(vector<string> &VIN,
 		exit(1);
 	}
 	
-	while(input.peek() != EOF)
+	while(!input.eof())
 	{
 		string tVIN;
 		int tmile;
@@ -52,7 +53,11 @@ read(vector<string> &VIN,
 		make.push_back(tmake);
 		color.push_back(tcolor);
 		year.push_back(tyear);
-	}
 		
+		input.get();	//read last "endl"
+		if(input.peek() == '\n') break;
+	}
+	
+	cout << "Data loaded into Database.\n";
 }
 

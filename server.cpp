@@ -13,6 +13,7 @@
 #include <iostream>
 #include <iomanip>
 #include <time.h>
+#include <list>
 #include "user.h"
 
 using namespace std;
@@ -23,12 +24,32 @@ using namespace std;
 
 #define MAXONLINE 10
 #define MAXBUFLEN 8192
+#define THREADNUM 6
 
 int highestsock = 0;
 int SERVERPORT = 5000;
 fd_set master;
 fd_set readfds;
 int listener = -1; // listen the connection request from client
+list<pthread_t> tids;
+
+//vector<int>& mile, long posL, long posH, int med
+
+struct crackpara 
+{
+	int num;
+	vector<int> * mile;
+	long posL;
+	long posH;
+	int med;	
+};
+
+//vector<int>& mile, long posL, long posH, int low, int high
+struct crack3para : public crackpara
+{
+	int low;
+	int high;
+};
 
 vector<struct User> users;
 
@@ -38,26 +59,37 @@ Please be advised by continuing that you agree to the terms of the\n\
 Computer Access and Usage Policy of Database Cracking Server.\n\n\n";
 
 const char* cmd_list = "Commands supported:\n\
-  select [attribute] from [table] where [predict]   # query data in SQL format\n\
+  select [attribute] from [table] where [predictate 1] and [predicate 2]\n\
+													# query data in SQL format\n\
   exit                                       	    # quit the system\n\
   quit                                       	    # quit the system\n\
   help                                       	    # print this message\n\
-  ?                                          	    # print this message\n";   
+  ?                                          	    # print this message\n";
 
 void server_run();
 void *handler(void *arg);
+void *crack(void *arg);
 vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator uit);
 
 
-vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator uit)   
+// #include <thread>
+
+// std::thread f(int a, int b, char c){
+
+// }
+
+// std::thread t(f, a ,b ,c);
+// t.join();
+
+vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator uit)
 {
 	vector<string> order;
 	string inst,para,str;
-	stringstream ss;	
-	
+	stringstream ss;
+
 	ss<<cmd;
 	ss>>inst;
-	
+
     if(level==GUEST)
     {
 		if(inst.compare("quit")==0 || inst.compare("exit")==0)
@@ -70,46 +102,135 @@ vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator ui
             order.push_back(inst);
             i = cmd.find("register");
             cmd = cmd.erase(0,i+8);
-					
+
             ss.clear();  // reset stringstream
             ss.str("");
-            
+
             para = "";
             ss<<cmd;
             ss>>para;
             if(!para.empty()) // has paras
             {
                 order.push_back(para); // get username
-                
+
                 i = cmd.find(para);
                 cmd = cmd.erase(0,i+para.size());
-                
+
                 ss.clear();  // reset stringstream
                 ss.str("");
                 para = "";
                 ss<<cmd;
                 ss>>para;
                 if(!para.empty())
-                    order.push_back(para); // get password               
-            }               
-        }       
-    }	
+                    order.push_back(para); // get password
+            }
+        }
+    }
 	else if(level==LOGIN)
 	{
 		uit->state |= ONLINE;
-		if((inst.compare("exit")) == 0 || (inst.compare("quit")) == 0 || 
+		if((inst.compare("exit")) == 0 || (inst.compare("quit")) == 0 ||
 				(inst.compare("help")) == 0 || (inst.compare("?")) == 0)
 			order.push_back(inst);
-            order.push_back(inst);	
-		
+
+		if(inst.compare("select")==0) // select [attribute] from [table] where [pred1] and [pred2]
+		{
+			string attr, table, pred1, pred2, keyword, next;
+			if (!(ss >> attr >> keyword >> table)){
+				order.clear();
+			}
+
+			if(keyword.compare("from")==0) // make sure the command format: has "from"
+			{
+				order.push_back(inst);
+				order.push_back(attr);
+				order.push_back(table);
+
+				ss >> next;
+				if(next.compare("where")==0)  // handle predicates
+				{
+					size_t  found = cmd.find("where");
+					string paras = cmd.substr(found+5);
+					if(paras != "")  // paras contains all predicates
+					{
+						ss.clear();  // reset stringstream
+						ss.str("");
+						found = paras.find("and");
+						if (found != string::npos)  // there are 2 predicates
+						{
+							// parse first predicate
+							pred1 = paras.substr(0,found-1);
+							ss << pred1;
+							string p1op1, p1op2, p1sig;   // the first , second operand and of predicate1
+							ss >> p1op1 >> p1op2 >> p1sig;
+							if(p1op1 != "" && p1op2!= "" && p1sig!="")
+							{
+								order.push_back(p1op1);
+								order.push_back(p1op2);
+								order.push_back(p1sig);
+							}
+							else
+							{
+								order.clear();
+							}
+							// parse second predicate
+							ss.clear();  // reset stringstream
+							ss.str("");
+							pred2 = paras.substr(found+3);
+							ss << pred2;
+							string p2op1, p2op2, p2sig;   // the first , second operand and of predicate1
+							ss >> p2op1 >> p2op2 >> p2sig;
+							if(p2op1 != "" && p2op2!= "" && p2sig!="")
+							{
+								order.push_back(p2op1);
+								order.push_back(p2op2);
+								order.push_back(p2sig);
+							}
+							else
+							{
+								order.clear();
+							}
+						}
+						else  // only 1 predicates
+						{
+							// parse first predicate
+							pred1 = paras.substr(0,found-1);
+							ss << pred1;
+							string p1op1, p1op2, p1sig;   // the first , second operand and of predicate1
+							ss >> p1op1 >> p1op2 >> p1sig;
+							if(p1op1 != "" && p1op2!= "" && p1sig!="")
+							{
+								order.push_back(p1op1);
+								order.push_back(p1op2);
+								order.push_back(p1sig);
+							}
+							else
+							{
+								order.clear();
+							}
+						}
+					}
+					else
+					{
+						order.clear();
+					}
+				}
+			}
+		}
+
 	}
-	return order;	
+	return order;
+}
+
+void *crack(void *arg)
+{
+	return NULL;
 }
 
 void *handler(void *arg)
 {
 	pthread_detach(pthread_self()); // the main thread won't be blocked even if the child doesn't finish
-    char sendbuf[MAXBUFLEN];
+    char sendbuf[MAXBUFLEN] ={0};
     char recvbuf[MAXBUFLEN] = {0};
     string cmd;
     int n;
@@ -117,20 +238,21 @@ void *handler(void *arg)
 	vector<string> order; 		// store the user command
 	vector<struct User>::iterator uit; // the iterator for vector users
 	User user;
-	
+
 	int countrecv = 0; // count how many times the server recv from client
 	int countguest = 0; // count lines as a guest
     int countuser = -1;
-	int level = USER;	
+	int level = USER;
 
 	// inform client connected
-	memset(sendbuf,'\0',MAXBUFLEN);
 	sprintf(sendbuf,authorized_info);
 	send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 	memset(sendbuf,'\0',MAXBUFLEN);
 	sprintf(sendbuf,"username (guest):");
-	send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);	
-	
+	 //int a = sprintf(sendbuf,"username (guest):");   // better way
+	// sendbuf[a] = 0;
+	send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+
 	while(1)
 	{
 		n = recv(sockfd,recvbuf,MAXBUFLEN,0);
@@ -146,16 +268,16 @@ void *handler(void *arg)
 			printf("User quit.\n");  // ? STILL HAS QUESTION
 			close(sockfd);
 			pthread_exit(NULL);
-		}	
+		}
 		else
-		{			
+		{
 			countrecv++;
             cmd = string(recvbuf);
             cmd = cmd.substr(0,n-2); // get the command and remove the newline
 			printf("command:%s\n",cmd.c_str());
 			if(countrecv==1 && cmd.size()==0)
-				level = GUEST;			
-			
+				level = GUEST;
+
 			//---------------------------------Guest--------------------------
 			if(level==GUEST)
 			{
@@ -170,8 +292,8 @@ void *handler(void *arg)
 						memset(sendbuf,'\0',MAXBUFLEN);
 						sprintf(sendbuf,"You log in as a guest. The only command you can use is\n'register username password'\n\n");
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
-						
-						memset(sendbuf,'\0',MAXBUFLEN);						
+
+						memset(sendbuf,'\0',MAXBUFLEN);
 						sprintf(sendbuf,"<guest: %d>",countguest);
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 					}
@@ -180,10 +302,10 @@ void *handler(void *arg)
 						sprintf(sendbuf,"You are not supposed to do this.\nYou can only use 'register username password' as a guest.\n");
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 						memset(sendbuf,'\0',MAXBUFLEN);
-						
+
 						memset(sendbuf,'\0',MAXBUFLEN);
 						sprintf(sendbuf,"<guest: %d>",++countguest);
-						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                        
+						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 					}
 				}
 				else // get cmd: register (have to check cmd)
@@ -199,7 +321,7 @@ void *handler(void *arg)
 							{
 								memset(sendbuf,'\0',MAXBUFLEN);
 								sprintf(sendbuf,"Parameters are insufficient! Please give out username and password.\n");
-								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                                
+								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 							}
 							else
 							{
@@ -215,36 +337,36 @@ void *handler(void *arg)
 								{
 									memset(sendbuf,'\0',MAXBUFLEN);
 									sprintf(sendbuf,"%s has already been registered! Please change a username.\n",order[1].c_str());
-									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                                 
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 								}
 								else
 								{
 									user.name = order[1];
 									user.pwd = order[2];
-									user.sockfd = -1; 
+									user.sockfd = -1;
 									users.push_back(user);
 									//----------------------inform user register succeed-----------------------
 									memset(sendbuf,'\0',MAXBUFLEN);
 									sprintf(sendbuf,"User %s registered!\n",order[1].c_str());
 									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
-									printf("User %s registered!\n",order[1].c_str());                               
-								}                                
+									printf("User %s registered!\n",order[1].c_str());
+								}
 							}
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"<guest: %d>",++countguest);
-							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                            
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 						}
 						//----guest quit------
 						else if(order[0].compare("quit")==0 || order[0].compare("exit")==0)
 						{
-							printf("Guest quit.\n"); 
+							printf("Guest quit.\n");
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"Thank you for using Database Cracking Server.\nSee you next time.\n\n");
-							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                            
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 							close(sockfd);
 							pthread_exit(NULL);
 						}
-					}				
+					}
 					else
 					{
 						memset(sendbuf,'\0',MAXBUFLEN);
@@ -253,11 +375,11 @@ void *handler(void *arg)
 						printf("Invalid command!\n");
 						memset(sendbuf,'\0',MAXBUFLEN);
 						sprintf(sendbuf,"<guest: %d>",++countguest);
-						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                        
+						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 					}
 					order.clear();
 				}
-			}		
+			}
 			//---------------------------------User--------------------------
 			else if(level==USER)
 			{
@@ -281,7 +403,7 @@ void *handler(void *arg)
 						close(sockfd);
 						pthread_exit(NULL);
 					}
-					else // found the user 
+					else // found the user
 					{
 						memset(sendbuf,'\0',MAXBUFLEN);
 						sprintf(sendbuf,"password:");
@@ -293,7 +415,7 @@ void *handler(void *arg)
                     if(uit->pwd.compare(cmd)==0) //password match
                     {
                         if(uit->state & ONLINE) // if the user is already login somewhere
-                        {                      
+                        {
                             int pastsockfd = uit->sockfd; //record the past sockfd
                             uit->state ^= ONLINE;
                             memset(sendbuf,'\0',MAXBUFLEN);
@@ -310,12 +432,12 @@ void *handler(void *arg)
 
                         memset(sendbuf,'\0',MAXBUFLEN);
                         sprintf(sendbuf,cmd_list);
-                        send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                        
+                        send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 
                         memset(sendbuf,'\0',MAXBUFLEN);
                         sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
                         send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
-                        
+
                     }
                     else //password doesn't match
                     {
@@ -323,7 +445,7 @@ void *handler(void *arg)
 						sprintf(sendbuf,"Login failed!\nThank you for using Database Cracking Server.\nSee you next time.\n");
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 						close(sockfd);
-						pthread_exit(NULL);                        
+						pthread_exit(NULL);
                     }
                 }
 			}
@@ -333,7 +455,7 @@ void *handler(void *arg)
                 {
                     memset(sendbuf,'\0',MAXBUFLEN);
                     sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
-                    send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                    
+                    send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
                 }
 				else
 				{
@@ -343,10 +465,10 @@ void *handler(void *arg)
 						memset(sendbuf,'\0',MAXBUFLEN);
                         sprintf(sendbuf,"Invalid command!\n");
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
-                        printf("Invalid command!\n");                         
+                        printf("Invalid command!\n");
                     }
 					// supported commands
-					else 
+					else
 					{
                         if(order[0].compare("quit")==0||order[0].compare("exit")==0)
                         {
@@ -355,28 +477,99 @@ void *handler(void *arg)
                             printf("User %s quit.\n",uit->name.c_str());
                             memset(sendbuf,'\0',MAXBUFLEN);
                             sprintf(sendbuf,"Thank you for using Database Cracking Server.\nSee you next time.\n\n");
-                            send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                            
+                            send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
                             close(sockfd);
-                            pthread_exit(NULL);                            
-                        }						
+                            pthread_exit(NULL);
+                        }
                         else if(order[0].compare("help")==0||order[0].compare("?")==0)
                         {
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,cmd_list);
-							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                            
-                        }					
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+                        }
+						else if(order[0].compare("select")==0) // select [attribute] from [table] where [pred1] and [pred2]
+						{
+							string attr = order[1];
+							string table = order[2];
+							string lop1,lop2, rop1, rop2, sign1, sign2;
+							crackpara cp;
+							if(order.size()==3) // no predicates: select [attr] from [table] 
+							{
+								
+							}
+							else if(order.size()==6) // only pred1: select [attr] from [table] where 
+							{
+								lop1 = order[3];
+								sign1 = order[4];
+								rop1 = order[5];	
+								// calculate para
+								cp.num = 2;
+								
+															
+							}
+							else if(order.size()==9) // pred1 and pred2
+							{
+								lop1 = order[3];
+								sign1 = order[4];
+								rop1 = order[5];
+								
+								lop2 = order[6];
+								sign2 = order[7];
+								rop2 = order[8];	
+								// calculate para
+								cp.num  = 3;
+							}
+							
+							//create 6 threads
+							// int rank[THREADNUM];
+							pthread_t crackers[THREADNUM];
+							int isSend = 0;
+							for(int i=0;i<THREADNUM;i++)
+							{
+								// rank[i] = i;
+								if(pthread_create(&crackers[i], NULL, crack, (void *)&cp))
+								{																			
+										break;																	
+								}
+								isSend++;
+							}
+							
+							// join
+							for(int i=0;i<isSend;i++)
+							{
+								pthread_join(crackers[i], NULL);					
+							}				
+							if (isSend!=THREADNUM){
+								memset(sendbuf,'\0',MAXBUFLEN);
+								sprintf(sendbuf,"Execute query fails: fail to create threads.\n");
+								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);		
+								continue;
+							}
+							// merge();
+							vector<int> queryres;// = //merge
+							// send to client	
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Execute query result:\n");
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
+							for(int i=0;i<(int)queryres.size();i++)
+							{
+								memset(sendbuf,'\0',MAXBUFLEN);
+								sprintf(sendbuf,"%d\n",queryres[i]);
+								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+							}
+						}
 						if(order.empty())
 						{
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
-							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                        
-						}					
-					}						
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+						}
+					}
 				}
 				order.clear();
-			}				
+			}
 		}
-	}		
+	}
 }
 
 void read_from_socket()
@@ -398,7 +591,9 @@ void read_from_socket()
 		{
 			if(pthread_create(&tid,NULL,&handler,&newfd)!=0)
 				printf("Fail to create new a thread.\n");
-		}
+			}
+			tids.push_back(tid);
+
 	}
 	if(FD_ISSET(fileno(stdin),&readfds)) // if receive quit from stdin
 	{

@@ -7,15 +7,12 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <iostream>
 #include <iomanip>
-#include <netdb.h>
-#include <cerrno>
 #include "user.h"
-
 
 using namespace std;
 
@@ -26,6 +23,8 @@ using namespace std;
 #define MAXONLINE 10
 #define MAXBUFLEN 8192
 
+int SERVERPORT;
+char SERVERIP[40]; //127.0.0.1
 int highestsock = 0;
 
 int listener = -1;
@@ -37,7 +36,7 @@ int countrecv = 0; // count how many times the client recv from server
 
 void read_from_socket();
 vector<string> cmd_process(string cmd);
-int client_run();
+void client_run();
 
 void read_from_socket()
 {
@@ -102,51 +101,38 @@ void read_from_socket()
 	}
 }
 
-int client_run(char * SERVERIP, char * SERVERPORT)
+void client_run()
 {
-
-	//--------------------connect to server--------------------
-	struct addrinfo hints, *res, *rp;
-	socklen_t addr_len = sizeof(struct addrinfo);
-	memset(&hints, 0, addr_len);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
-
-
-	// get possible ports
-	if (getaddrinfo(SERVERIP, SERVERPORT, &hints, &res) < 0){
-		const int rc = errno;
-		cerr << "Error: getaddrinfo failed: " << strerror(rc) << endl;
-		return -1;
-		// continue;
-	}
-
-	// try to bind with one interface
-	for(rp = res; rp; rp = rp -> ai_next){
-		cout << "Trying " << inet_ntoa(((struct sockaddr_in *) (rp -> ai_addr)) -> sin_addr) << ":" << ntohs(((struct sockaddr_in *) (rp -> ai_addr)) -> sin_port) << endl;
-
-		if ((listener = socket(rp -> ai_family, rp -> ai_socktype, rp -> ai_protocol)) < 0){
-			continue;
-		}
-
-		if (!connect(listener, rp -> ai_addr, rp -> ai_addrlen)){
-			cout << "Connected to " << inet_ntoa(((struct sockaddr_in *) rp -> ai_addr) -> sin_addr) << ":" << ntohs(((struct sockaddr_in *) rp -> ai_addr) -> sin_port) << " (" << listener << ")" << endl;
-			break;
-		}
-		close(listener);
-	}
-
-    freeaddrinfo(res);
-	if (!rp)  // try all aliases and fail
-	{
-		return -1;
-	}
-
+	struct sockaddr_in server_addr;
 
 	FD_ZERO(&master);
 	FD_ZERO(&readfds);
-	//--------------------connect to server--------------------	
+
+	//--------------------connect to server--------------------
+	if((listener=socket(AF_INET,SOCK_STREAM,0))==-1)
+	{
+		perror("Fail to create connect socket.\n");
+		exit(-1);
+	}
+	// set listener address to be reused immediately after release
+	int a=1;
+	if(setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,&a,sizeof(int))==-1)
+	{
+		perror("Fail to set socket option.\n");
+		exit(-1);
+	}
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = htons(SERVERPORT);
+	inet_aton(SERVERIP,(struct in_addr*)&server_addr.sin_addr.s_addr);
+	memset(&(server_addr.sin_zero),'\0',8);
+
+	if(connect(listener,(struct sockaddr*)&server_addr,sizeof(struct sockaddr))==-1)
+	{
+		printf("Fail to connect to server at port %d.\n",SERVERPORT);
+		close(listener);
+		exit(-1);
+	}
+	//--------------------connect to server--------------------
 
 	FD_SET(listener,&master);
 	if(listener>highestsock)
@@ -180,13 +166,13 @@ int main(int argc, char **argv)
 		perror("Insufficient parameter.\n");
 		return 1;
 	}
-	SERVERIP = argv[1];
-	SERVERPORT = argv[2];
-	// memcpy(SERVERIP,argv[1], strlen(argv[1])); //get server IP
-	// SERVERPORT = atoi(argv[2]); //get server port
+	else
+	{
+		memcpy(SERVERIP,argv[1], strlen(argv[1])); //get server IP
+		SERVERPORT = atoi(argv[2]); //get server port
+	}
 
-
-	client_run(argv[1], argv[2]);
+	client_run();
 
 	return 0;
 }

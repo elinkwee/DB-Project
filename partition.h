@@ -7,8 +7,26 @@
 #include<list>
 
 const long N_ = 1000000;
-extern const long N;
+
 using namespace std;
+
+struct crack2para 
+{
+	vector<int> * mile;
+	long posL;
+	long posH;
+	int med;	
+};
+
+//vector<int>& mile, long posL, long posH, int low, int high
+struct crack3para
+{
+	vector<int> * mile;
+	long posL;
+	long posH;
+	int low;
+	int high;
+};
 
 ///////////////////time_substract/////////////////
 
@@ -32,13 +50,20 @@ int time_substract(struct timeval *result, struct timeval *begin,struct timeval 
 
 ///////////////////////////////////////////////////
 
-double
-CrackInTwo(vector<int>& mile, long posL, long posH, int med) //med is mileage. < and >=
+void * 
+CrackInTwo(void *arg)
+//CrackInTwo(vector<int>& mile, long posL, long posH, int med) //med is mileage. < and >=
 {
 	// receive one pivot "med"
 	// need to guarantee 0 <= posL <= posH <= N-1. Wrong num if posH > N
 	//posL posH cannot be equal. At least by difference of 1
 	// med 取任意值均可 没有限制。最多不排序。不需要修改Two了。
+	
+	crack2para cp2 = *(crack2para *)arg;
+	vector<int>& mile = *(cp2.mile);
+	long posL = cp2.posL;
+	long posH = cp2.posR;
+	int med = cp2.med;
 	
 	if(mile.empty()){
 		cout << "Empty mileage array!\n";
@@ -72,19 +97,35 @@ CrackInTwo(vector<int>& mile, long posL, long posH, int med) //med is mileage. <
 	
 	gettimeofday(&finish, 0);
 	time_substract(&diff, &start, &finish);
-	double duration = (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0);
+	double * duration = new (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0);
 	////finish counting time
-	return duration;
+	return (void*)duration;
 
 }
 
-double
-CrackInThree(vector<int>& mile, 
-			long posL, 
-			long posH, int low, int high)
+void *
+CrackInThree(void *arg)
+// CrackInThree(vector<int>& mile, 
+			// long posL, 
+			// long posH, int low, int high)
 // >=, >, <
-
 {
+	
+	crack3para cp3 = *(crack3para *)arg;
+	vector<int>& mile = *(cp3.mile);
+	long posL = cp3.posL;
+	long posH = cp3.posR;
+	int med = cp3.med;
+	int low = cp3.low;
+	int high = cp3.high;
+	
+	if(low>high)
+	{
+		int temp = high;
+		high = low;
+		low  = high;
+	}
+	
 		// receive two pivot "low" "high"
 		///begin counting time
 	struct timeval start, finish, diff;
@@ -156,9 +197,9 @@ CrackInThree(vector<int>& mile,
 	}
 	gettimeofday(&finish, 0);
 	time_substract(&diff, &start, &finish);
-	double duration = (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0);
+	double * duration = new (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0);
 	////finish counting time
-	return duration;
+	return (void*)duration;
 }
 
 
@@ -211,6 +252,12 @@ MergeInThree(vector<int>& mile, int low, int high)
 // >=, >, <
 
 {
+	if(low>high)
+	{
+		int temp = high;
+		high = low;
+		low  = high;
+	}	
 		///begin counting time
 	struct timeval start, finish, diff;
 	gettimeofday(&start, 0);
@@ -317,9 +364,7 @@ double Insertion(vector< pair<long,string> >& v)
 
 ///////////Merge Sort//////////////////
 
-void mergehalves(vector< int>& v, 
-				long first, long mid, long last, 
-				vector< int >& temp)
+void mergehalves(vector< pair<long,string> >& v, long first, long mid, long last, vector< pair<long,string> >& temp)
 {
 	long i1 = first, i2 = mid+1,	// beginning pointers for two halves
 		j1 = mid, j2 = last,		// end pointers
@@ -327,7 +372,7 @@ void mergehalves(vector< int>& v,
 		
 	while( i1 <= j1 && i2 <= j2)	//smaller one from two halves each time.
 	{								// move onto next on smaller half.
-		if( v[i1] <= v[i2] )
+		if( v[i1].first <= v[i2].first )
 		{
 			temp[k] = v[i1];
 			k++; i1++;
@@ -354,9 +399,7 @@ void mergehalves(vector< int>& v,
 	
 }
 
-void merge(vector< int >& v, 
-			long first, long last, 
-			vector< int >& temp)
+void merge(vector< pair<long,string> >& v, long first, long last, vector< pair<long,string> >& temp)
 {
 	if( first < last )
 	{
@@ -367,13 +410,13 @@ void merge(vector< int >& v,
 	}
 }
 
-double MergeSort(vector<int>& v)	// v = mile
+double Merge(vector< pair<long,string> >& v)
 {
-	vector<int > temp(N);	//initialize a vector with size N
+	vector<pair<long, string> > temp(N_);	//initialize a vector with size N_
 	struct timeval start, finish, diff;
 	gettimeofday(&start, 0);
 	
-	merge(v, 0, N-1, temp);
+	merge(v, 0, N_-1, temp);
 	
 	gettimeofday(&finish, 0);
 	time_substract(&diff, &start, &finish);

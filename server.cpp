@@ -15,6 +15,7 @@
 #include <time.h>
 #include <list>
 #include "user.h"
+#include "gendata.h"
 
 using namespace std;
 
@@ -35,23 +36,15 @@ list<pthread_t> tids;
 
 //vector<int>& mile, long posL, long posH, int med
 
-struct crackpara 
-{
-	int num;
-	vector<int> * mile;
-	long posL;
-	long posH;
-	int med;	
-};
-
-//vector<int>& mile, long posL, long posH, int low, int high
-struct crack3para : public crackpara
-{
-	int low;
-	int high;
-};
 
 vector<struct User> users;
+
+// TABLE
+vector<string> VIN;
+vector<int> mile;
+vector<string> make;
+vector<string> color;
+vector<int> year;
 
 const char* authorized_info = "                       -=-= AUTHORIZED USERS ONLY =-=-\n\
 You are attempting to log into Database Cracking Server.\n\
@@ -217,7 +210,6 @@ vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator ui
 				}
 			}
 		}
-
 	}
 	return order;
 }
@@ -492,7 +484,8 @@ void *handler(void *arg)
 							string attr = order[1];
 							string table = order[2];
 							string lop1,lop2, rop1, rop2, sign1, sign2;
-							crackpara cp;
+							crack2para cp2;	
+							crack3para cp3;		
 							if(order.size()==3) // no predicates: select [attr] from [table] 
 							{
 								
@@ -502,10 +495,11 @@ void *handler(void *arg)
 								lop1 = order[3];
 								sign1 = order[4];
 								rop1 = order[5];	
-								// calculate para
-								cp.num = 2;
-								
-															
+								// calculate para							
+								*(cp2.mile) = mile;		
+								stringstream ss;
+								ss << rop1;
+								ss >> cp2.med;								
 							}
 							else if(order.size()==9) // pred1 and pred2
 							{
@@ -517,27 +511,78 @@ void *handler(void *arg)
 								sign2 = order[7];
 								rop2 = order[8];	
 								// calculate para
-								cp.num  = 3;
+								*(cp3.mile) = mile;	
+								stringstream ss;
+								ss << rop1;
+								ss >> cp3.low;
+								ss.clear();
+								ss.str("");
+								ss << rop2;
+								ss >> cp3.high;
 							}
 							
 							//create 6 threads
-							// int rank[THREADNUM];
 							pthread_t crackers[THREADNUM];
 							int isSend = 0;
-							for(int i=0;i<THREADNUM;i++)
+							int block = mile.size()/THREADNUM;
+							//int endblock = mile.size() - (THREADNUM-1) * block;
+							if(order.size()==6)
 							{
-								// rank[i] = i;
-								if(pthread_create(&crackers[i], NULL, crack, (void *)&cp))
-								{																			
+								for(int i=0;i<THREADNUM;i++)
+								{
+									// calculate posL and posR									
+									if(i!=THREADNUM-1)
+									{
+										cp2.posL = i * block;
+										cp2.posR = (i+1) * block - 1;
+									}
+									else // the last thread
+									{
+										cp2.posL = i * block;
+										cp2.posR = mile.size() - 1;								
+									}
+									if(pthread_create(&crackers[i], NULL, CrackInTwo, (void *)&cp2))
+									{																			
 										break;																	
-								}
-								isSend++;
+									}
+									isSend++;
+								}								
 							}
-							
+							else if(order.size()==9)
+							{
+								for(int i=0;i<THREADNUM;i++)
+								{
+									if(i!=THREADNUM-1)
+									{
+										cp3.posL = i * block;
+										cp3.posR = (i+1) * block - 1;
+									}
+									else // the last thread
+									{
+										cp3.posL = i * block;
+										cp3.posR = mile.size() - 1;								
+									}									
+									// calculate posL and posR
+									if(pthread_create(&crackers[i], NULL, CrackInThree, (void *)&cp3))
+									{																			
+										break;																	
+									}
+									isSend++;
+								}								
+							}
+						
 							// join
+							void* rtn;
+							double exetime = -1;
 							for(int i=0;i<isSend;i++)
 							{
-								pthread_join(crackers[i], NULL);					
+								pthread_join(crackers[i], &rtn);
+								double time = *(double *)rtn;
+								delete (double *)rtn;
+								if(time > exetime)
+								{
+									exetime = time;
+								}
 							}				
 							if (isSend!=THREADNUM){
 								memset(sendbuf,'\0',MAXBUFLEN);
@@ -545,19 +590,30 @@ void *handler(void *arg)
 								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);		
 								continue;
 							}
+												
 							// merge();
-							vector<int> queryres;// = //merge
-							// send to client	
-							memset(sendbuf,'\0',MAXBUFLEN);
-							sprintf(sendbuf,"Execute query result:\n");
-							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
-							for(int i=0;i<(int)queryres.size();i++)
+							if(order.size()==6)
 							{
-								memset(sendbuf,'\0',MAXBUFLEN);
-								sprintf(sendbuf,"%d\n",queryres[i]);
-								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+								exetime += MergeInTwo(mile, cp2.med);
 							}
+							else if(order.size()==6)
+							{
+								exetime += MergeInThree(mile, cp2.med);
+							}	
+							
+							// send to client query execute time	
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Execute time of the query: %f\n",exetime);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);	
+							
+							// for(int i=0;i<(int)queryres.size();i++)
+							// {
+								// memset(sendbuf,'\0',MAXBUFLEN);
+								// sprintf(sendbuf,"%d\n",queryres[i]);
+								// send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+							// }
 						}
+						 						
 						if(order.empty())
 						{
 							memset(sendbuf,'\0',MAXBUFLEN);
@@ -684,7 +740,7 @@ int main(int argc, char **argv)
 	else
 	{
 		SERVERPORT = atoi(argv[1]);  // get the server port
-	}
+	} 
 
 	server_run();
 	return 0;

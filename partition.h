@@ -7,7 +7,7 @@
 #include<list>
 
 const long N_ = 1000000;
-
+extern const long N;
 using namespace std;
 
 struct crack2para 
@@ -364,7 +364,9 @@ double Insertion(vector< pair<long,string> >& v)
 
 ///////////Merge Sort//////////////////
 
-void mergehalves(vector< pair<long,string> >& v, long first, long mid, long last, vector< pair<long,string> >& temp)
+void mergehalves(vector< int>& v, 
+				long first, long mid, long last, 
+				vector< int >& temp)
 {
 	long i1 = first, i2 = mid+1,	// beginning pointers for two halves
 		j1 = mid, j2 = last,		// end pointers
@@ -372,7 +374,7 @@ void mergehalves(vector< pair<long,string> >& v, long first, long mid, long last
 		
 	while( i1 <= j1 && i2 <= j2)	//smaller one from two halves each time.
 	{								// move onto next on smaller half.
-		if( v[i1].first <= v[i2].first )
+		if( v[i1] <= v[i2] )
 		{
 			temp[k] = v[i1];
 			k++; i1++;
@@ -399,7 +401,9 @@ void mergehalves(vector< pair<long,string> >& v, long first, long mid, long last
 	
 }
 
-void merge(vector< pair<long,string> >& v, long first, long last, vector< pair<long,string> >& temp)
+void merge(vector< int >& v, 
+			long first, long last, 
+			vector< int >& temp)
 {
 	if( first < last )
 	{
@@ -410,13 +414,13 @@ void merge(vector< pair<long,string> >& v, long first, long last, vector< pair<l
 	}
 }
 
-double Merge(vector< pair<long,string> >& v)
+double MergeSort(vector<int>& v)	// v = mile
 {
-	vector<pair<long, string> > temp(N_);	//initialize a vector with size N_
+	vector<int > temp(N);	//initialize a vector with size N
 	struct timeval start, finish, diff;
 	gettimeofday(&start, 0);
 	
-	merge(v, 0, N_-1, temp);
+	merge(v, 0, N-1, temp);
 	
 	gettimeofday(&finish, 0);
 	time_substract(&diff, &start, &finish);
@@ -424,6 +428,7 @@ double Merge(vector< pair<long,string> >& v)
 	
 	return duration;
 }
+
 
 ///////////////Counting Sort//////////////////
 

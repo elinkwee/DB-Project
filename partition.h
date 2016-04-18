@@ -15,7 +15,8 @@ struct crack2para
 	vector<int> * mile;
 	long posL;
 	long posH;
-	int med;	
+	int med;
+	string sign;
 };
 
 //vector<int>& mile, long posL, long posH, int low, int high
@@ -26,6 +27,8 @@ struct crack3para
 	long posH;
 	int low;
 	int high;
+	string sign1;
+	string sign2;	
 };
 
 ///////////////////time_substract/////////////////
@@ -64,6 +67,7 @@ CrackInTwo(void *arg)
 	long posL = cp2.posL;
 	long posH = cp2.posR;
 	int med = cp2.med;
+	string sign = cp2.sign;
 	
 	if(mile.empty()){
 		cout << "Empty mileage array!\n";
@@ -118,12 +122,17 @@ CrackInThree(void *arg)
 	int med = cp3.med;
 	int low = cp3.low;
 	int high = cp3.high;
+	string sign1 = cp3.sign1;
+	string sign2 = cp3.sign2;	
 	
 	if(low>high)
 	{
 		int temp = high;
 		high = low;
 		low  = high;
+		string ts = sign2;
+		sign2 = sign1;
+		sign1 = ts		
 	}
 	
 		// receive two pivot "low" "high"

@@ -22,7 +22,7 @@ http://zhidao.baidu.com/question/303841146109528764.html?qbl=relate_question_2&w
 追答：随机数种子初始化只需一次，反复初始化就会产生重复的数字。
 
 */
-#define N 250000
+const long N = 250000;
 #define MED 30000
 #define LOW 50000
 #define HIGH 100000
@@ -146,13 +146,20 @@ int main(){
 	double duration=0.0;
 	
 	read(VIN, mile, make, color, year);
+
+//	for(int k=0; k<N; ++k)
+//		cout << mile[k] << endl;
 /*
-	for(int k=0; k<50; ++k)
-		cout << mile[k] << endl;
-	
 	CrackInTwo(mile, 0, N-1, MED);
 	cout << "Cracking Two completed\n\n";
 */
+	cout << "\n\n";
+	duration = MergeSort(mile);
+//	for(int k=0; k<N; ++k)
+//		cout << mile[k] << endl;
+	cout << "MergeSort takes " << duration << " second.\n";
+	
+/*
 	cout << "N = " << N << endl;
 	duration = MergeInThree(mile, LOW, HIGH);
 	cout << "MergeInThree takes " << duration << " second.\n";
@@ -160,7 +167,7 @@ int main(){
 	duration = MergeInTwo(mile, MED);
 	cout << "MergeInTwo takes " << duration << " second.\n";
 
-	/*	for(int k=0; k<50; ++k)
+		for(int k=0; k<50; ++k)
 		cout << mile[k] << endl;
 	
 	CrackInThree(mile, 0, N-1, LOW, HIGH);

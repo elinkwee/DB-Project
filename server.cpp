@@ -50,7 +50,7 @@ extern vector<int> yearSort;
 
 #define MAXONLINE 10
 #define MAXBUFLEN 8192
-#define THREADNUM 1
+#define THREADNUM 6
 #define THREADNUM2 1
 
 int highestsock = 0;
@@ -77,8 +77,8 @@ const char* cmd_list = "Commands supported:\n\
   readdata                        # read table data into memory\n\
   select <attribute> from <table> where [predictate 1] and [predicate 2]\n\
                                   # query data in SQL format\n\
-								  # Notice : in [predicate] there must be spaces between\n\
-								  # operands and the operator\n\
+                                  # Notice : in [predicate] there must be spaces between\n\
+                                  # operands and the operator\n\
   printitem <number>              # print out the top <number> items in table\n\
                                     <number> size should be between [0,100]\n\
   sorting                         # Use merge sort to sort the whole data and record time\n\
@@ -662,6 +662,9 @@ void *handler(void *arg)
 							double time  =MergeSort(mileSort);
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"Sorting execution time %f second.\n", time);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);	
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
 							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
 						}
 					}
@@ -1038,6 +1041,9 @@ void *handler(void *arg)
 							double time  =MergeSort(mileSort);
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"Sorting execution time %f second.\n", time);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);		
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
 							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
 						}						
 						else if(order.empty())

@@ -5,14 +5,48 @@
 #include<ctime>
 #include<sys/time.h>
 #include<list>
+#include <cstring>
+#include <sstream>
+#include <pthread.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <iostream>
+#include <iomanip>
+#include <time.h>
+#include <list>
+#include <cerrno>
 
 const long N_ = 1000000;
 extern const long N;
 using namespace std;
 
+extern vector<string> VIN;
+extern vector<int> mile;
+extern vector<string> make;
+extern vector<string> color;
+extern vector<int> year;
+
+extern vector<string> VINOrig;
+extern vector<int> mileOrig;
+extern vector<string> makeOrig;
+extern vector<string> colorOrig;
+extern vector<int> yearOrig;
+
+extern vector<string> VINSort;
+extern vector<int> mileSort;
+extern vector<string> makeSort;
+extern vector<string> colorSort;
+extern vector<int> yearSort;
+
+
 struct crack2para 
 {
-	vector<int> * mile;
+	//vector<int> * mile;
 	long posL;
 	long posH;
 	int med;
@@ -22,7 +56,7 @@ struct crack2para
 //vector<int>& mile, long posL, long posH, int low, int high
 struct crack3para
 {
-	vector<int> * mile;
+	//vector<int> * mile;
 	long posL;
 	long posH;
 	int low;
@@ -63,9 +97,9 @@ CrackInTwo(void *arg)
 	// med 取任意值均可 没有限制。最多不排序。不需要修改Two了。
 	
 	crack2para cp2 = *(crack2para *)arg;
-	vector<int>& mile = *(cp2.mile);
+	//vector<int>& mile = *(cp2.mile);
 	long posL = cp2.posL;
-	long posH = cp2.posR;
+	long posH = cp2.posH;
 	int med = cp2.med;
 	string sign = cp2.sign;
 	
@@ -74,7 +108,7 @@ CrackInTwo(void *arg)
 		exit(1);
 	}
 	
-	if(posL < 0 || posH >= mile.size()){
+	if(posL < 0 || posH >= (int)mile.size()){
 		cout << "pos cross border!\n";
 		exit(1);
 	}
@@ -101,7 +135,7 @@ CrackInTwo(void *arg)
 	
 	gettimeofday(&finish, 0);
 	time_substract(&diff, &start, &finish);
-	double * duration = new (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0);
+	double * duration = new double( (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0));
 	////finish counting time
 	return (void*)duration;
 
@@ -116,10 +150,9 @@ CrackInThree(void *arg)
 {
 	
 	crack3para cp3 = *(crack3para *)arg;
-	vector<int>& mile = *(cp3.mile);
+	//vector<int>& mile = *(cp3.mile);
 	long posL = cp3.posL;
-	long posH = cp3.posR;
-	int med = cp3.med;
+	long posH = cp3.posH;
 	int low = cp3.low;
 	int high = cp3.high;
 	string sign1 = cp3.sign1;
@@ -129,10 +162,10 @@ CrackInThree(void *arg)
 	{
 		int temp = high;
 		high = low;
-		low  = high;
+		low  = temp;
 		string ts = sign2;
 		sign2 = sign1;
-		sign1 = ts		
+		sign1 = ts;		
 	}
 	
 		// receive two pivot "low" "high"
@@ -151,7 +184,7 @@ CrackInThree(void *arg)
 	}
 	long x3 = x2;
 	//cout << "before while2";
-	while (mile[x3] > low && x3 > x1)
+	while ((mile[x3] > low) && (x3 > x1))
 	{
 		if(mile[x3] >= high)
 		{
@@ -170,10 +203,10 @@ CrackInThree(void *arg)
 			mile[x1] = mile[x2];
 			mile[x2] = temp;
 		}
-		return -1.0;
+		return NULL;
 	}
 	
-//	cout << "Before x1<=x3\n";
+	//cout << "Before x1<=x3\n";
 	while(x1 <= x3)
 	{
 	//	cout << "c ";
@@ -197,23 +230,26 @@ CrackInThree(void *arg)
 					mile[x2] = mile[x3];
 					mile[x3] = t1;
 					x2--;
-				//	cout << "f ";
+					//cout << "f ";
 				}
 				x3--;
-				//cout << "g ";
+				//cout << "ggggggggggggggggggggggggggggg\n ";
 			}
 		}
+		//cout <<"3333\n";
 	}
+	//cout << posL << " "<<posH<<" "<<"222222\n";
 	gettimeofday(&finish, 0);
 	time_substract(&diff, &start, &finish);
-	double * duration = new (double)diff.tv_sec + ((double)diff.tv_usec/1000000.0);
+	double * duration = new double((double)diff.tv_sec + ((double)diff.tv_usec/1000000.0));
 	////finish counting time
 	return (void*)duration;
 }
 
 
 double
-MergeInTwo(vector<int>& mile, int med) //med is mileage. < and >=
+MergeInTwo(int med)
+//MergeInTwo(vector<int>& mile, int med) //med is mileage. < and >=
 {
 	//用于多线程第二阶段，其实和CrackInTwo一样只不过改了接口
 	long posL = 0;
@@ -223,7 +259,7 @@ MergeInTwo(vector<int>& mile, int med) //med is mileage. < and >=
 		exit(1);
 	}
 	
-	if(posL < 0 || posH >= mile.size()){
+	if(posL < 0 || posH >= (int)mile.size()){
 		cout << "pos cross border!\n";
 		exit(1);
 	}
@@ -257,7 +293,7 @@ MergeInTwo(vector<int>& mile, int med) //med is mileage. < and >=
 }
 
 double
-MergeInThree(vector<int>& mile, int low, int high)
+MergeInThree(int low, int high)
 // >=, >, <
 
 {
@@ -265,7 +301,7 @@ MergeInThree(vector<int>& mile, int low, int high)
 	{
 		int temp = high;
 		high = low;
-		low  = high;
+		low  = temp;
 	}	
 		///begin counting time
 	struct timeval start, finish, diff;
@@ -349,7 +385,7 @@ double Insertion(vector< pair<long,string> >& v)
 {
 	struct timeval start, finish, diff;
 	gettimeofday(&start, 0);
-	for(long i=0; i<v.size(); ++i)
+	for(long i=0; i<(int)v.size(); ++i)
 	{
 		if( v[i-1].first > v[i].first )
 		{
@@ -448,7 +484,7 @@ double Counting(vector< pair<long,string> >& v, long K_)
 	struct timeval start, finish, diff;
 	gettimeofday(&start, 0);
 	
-	for(long i=0; i<v.size(); i++)
+	for(long i=0; i<(int)v.size(); i++)
 	{
 		b[ v[i].first ].push_back( v[i]);
 //		cout << i << "\t" << v[i].first << " | " << v[i].second << endl;

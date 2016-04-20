@@ -14,18 +14,44 @@
 #include <iomanip>
 #include <time.h>
 #include <list>
+#include <cerrno>
 #include "user.h"
 #include "gendata.h"
+#include "expdata.h"
 
 using namespace std;
+
+extern const long N;
+
+extern vector<string> VIN;
+extern vector<int> mile;
+extern vector<string> make;
+extern vector<string> color;
+extern vector<int> year;
+
+extern vector<string> VINOrig;
+extern vector<int> mileOrig;
+extern vector<string> makeOrig;
+extern vector<string> colorOrig;
+extern vector<int> yearOrig;
+
+extern vector<string> VINSort;
+extern vector<int> mileSort;
+extern vector<string> makeSort;
+extern vector<string> colorSort;
+extern vector<int> yearSort;
+
+//extern vector<int> mileSort;
 
 #define GUEST 0
 #define USER 1
 #define LOGIN 2
+#define HASDATA 3
 
 #define MAXONLINE 10
 #define MAXBUFLEN 8192
-#define THREADNUM 6
+#define THREADNUM 1
+#define THREADNUM2 1
 
 int highestsock = 0;
 int SERVERPORT = 5000;
@@ -36,15 +62,8 @@ list<pthread_t> tids;
 
 //vector<int>& mile, long posL, long posH, int med
 
-
+   
 vector<struct User> users;
-
-// TABLE
-vector<string> VIN;
-vector<int> mile;
-vector<string> make;
-vector<string> color;
-vector<int> year;
 
 const char* authorized_info = "                       -=-= AUTHORIZED USERS ONLY =-=-\n\
 You are attempting to log into Database Cracking Server.\n\
@@ -52,27 +71,25 @@ Please be advised by continuing that you agree to the terms of the\n\
 Computer Access and Usage Policy of Database Cracking Server.\n\n\n";
 
 const char* cmd_list = "Commands supported:\n\
-  select [attribute] from [table] where [predictate 1] and [predicate 2]\n\
-													# query data in SQL format\n\
-  exit                                       	    # quit the system\n\
-  quit                                       	    # quit the system\n\
-  help                                       	    # print this message\n\
-  ?                                          	    # print this message\n";
-
+  register <username> <password>  # register a new user in the system\n\
+  gendata <number>                # generate <number> table data\n\
+                                  <number> size is better be no more than 1,000,000\n\
+  readdata                        # read table data into memory\n\
+  select <attribute> from <table> where [predictate 1] and [predicate 2]\n\
+                                  # query data in SQL format\n\
+								  # Notice : in [predicate] there must be spaces between\n\
+								  # operands and the operator\n\
+  printitem <number>              # print out the top <number> items in table\n\
+                                    <number> size should be between [0,100]\n\
+  sorting                         # Use merge sort to sort the whole data and record time\n\
+  exit                            # quit the system\n\
+  quit                            # quit the system\n\
+  help                            # print this message\n\
+  ?                               # print this message\n";
 void server_run();
 void *handler(void *arg);
-void *crack(void *arg);
 vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator uit);
 
-
-// #include <thread>
-
-// std::thread f(int a, int b, char c){
-
-// }
-
-// std::thread t(f, a ,b ,c);
-// t.join();
 
 vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator uit)
 {
@@ -101,7 +118,10 @@ vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator ui
 
             para = "";
             ss<<cmd;
-            ss>>para;
+            if (!(ss>>para))
+			{
+				printf("Lack of parameters\n");
+			}
             if(!para.empty()) // has paras
             {
                 order.push_back(para); // get username
@@ -125,8 +145,51 @@ vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator ui
 		if((inst.compare("exit")) == 0 || (inst.compare("quit")) == 0 ||
 				(inst.compare("help")) == 0 || (inst.compare("?")) == 0)
 			order.push_back(inst);
+		else if(inst.compare("select")==0)  // dont have to do detailed parse for select in LOGIN level
+		{
+			order.push_back(inst);
+		}
+		else if(inst.compare("gendata")==0)
+		{
+			order.push_back(inst);
+			string num;
+			ss >> num;
+			if(num!="")
+			{
+				order.push_back(num);
+			}
+			else
+			{
+				order.clear();
+			}			
+		}
+		else if(inst.compare("readdata")==0)
+		{
+			order.push_back(inst);
+		}
+		else if(inst.compare("printitem")==0)
+		{
+			order.push_back(inst);
+			string num;
+			ss >> num;
+			if(num!="")
+			{
+				order.push_back(num);
+			}
+		}
+		else if(inst.compare("sorting")==0)
+		{
+			order.push_back(inst);
+		}
+	}
+	else if(level==HASDATA)
+	{
+		uit->state |= ONLINE;
+		if((inst.compare("exit")) == 0 || (inst.compare("quit")) == 0 ||
+				(inst.compare("help")) == 0 || (inst.compare("?")) == 0)
+			order.push_back(inst);
 
-		if(inst.compare("select")==0) // select [attribute] from [table] where [pred1] and [pred2]
+		else if(inst.compare("select")==0) // select [attribute] from [table] where [pred1] and [pred2]
 		{
 			string attr, table, pred1, pred2, keyword, next;
 			if (!(ss >> attr >> keyword >> table)){
@@ -210,13 +273,40 @@ vector<string> cmd_process(string cmd,int level,vector<struct User>::iterator ui
 				}
 			}
 		}
+		else if(inst.compare("gendata")==0)
+		{
+			order.push_back(inst);
+			string num;
+			ss >> num;
+			if(num!="")
+			{
+				order.push_back(num);
+			}				
+		}
+		else if(inst.compare("readdata")==0)
+		{
+			order.push_back(inst);
+		}
+		else if(inst.compare("printitem")==0)
+		{
+			order.push_back(inst);
+			string num;
+			ss >> num;
+			if(num!="")
+			{
+				order.push_back(num);
+			}
+			else
+			{
+				order.clear();
+			}
+		}
+		else if(inst.compare("sorting")==0)
+		{
+			order.push_back(inst);
+		}	
 	}
 	return order;
-}
-
-void *crack(void *arg)
-{
-	return NULL;
 }
 
 void *handler(void *arg)
@@ -235,9 +325,14 @@ void *handler(void *arg)
 	int countguest = 0; // count lines as a guest
     int countuser = -1;
 	int level = USER;
+	
+	int pivot[2] = {-1};
+	string signs[2] = {""};
+	int type = 0;
+	long int datanum = -1;
 
 	// inform client connected
-	sprintf(sendbuf,authorized_info);
+	sprintf(sendbuf,"%s", authorized_info);
 	send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 	memset(sendbuf,'\0',MAXBUFLEN);
 	sprintf(sendbuf,"username (guest):");
@@ -278,7 +373,7 @@ void *handler(void *arg)
 					if(countrecv==1) // should show Commands
 					{
 						memset(sendbuf,'\0',MAXBUFLEN);
-						sprintf(sendbuf,cmd_list);
+						sprintf(sendbuf,"%s", cmd_list);
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 
 						memset(sendbuf,'\0',MAXBUFLEN);
@@ -423,7 +518,7 @@ void *handler(void *arg)
                         send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 
                         memset(sendbuf,'\0',MAXBUFLEN);
-                        sprintf(sendbuf,cmd_list);
+                        sprintf(sendbuf,"%s", cmd_list);
                         send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 
                         memset(sendbuf,'\0',MAXBUFLEN);
@@ -441,8 +536,8 @@ void *handler(void *arg)
                     }
                 }
 			}
-            else if(level==LOGIN)
-            {
+			else if(level==LOGIN)
+			{
                 if(cmd.size()==0) //newline
                 {
                     memset(sendbuf,'\0',MAXBUFLEN);
@@ -458,6 +553,9 @@ void *handler(void *arg)
                         sprintf(sendbuf,"Invalid command!\n");
 						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
                         printf("Invalid command!\n");
+						memset(sendbuf,'\0',MAXBUFLEN);
+						sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
                     }
 					// supported commands
 					else
@@ -476,7 +574,141 @@ void *handler(void *arg)
                         else if(order[0].compare("help")==0||order[0].compare("?")==0)
                         {
 							memset(sendbuf,'\0',MAXBUFLEN);
-							sprintf(sendbuf,cmd_list);
+							sprintf(sendbuf,"%s", cmd_list);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							order.clear();
+							
+                        }
+						else if(order[0].compare("select")==0)
+						{
+                            memset(sendbuf,'\0',MAXBUFLEN);
+                            sprintf(sendbuf,"You cannot do query now, please do gendata and readdata first.\n");
+                            send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							
+						}
+						else if(order[0].compare("gendata")==0)
+						{
+							
+							if(order.size()==1)
+							{
+								datanum = N;
+								memset(sendbuf,'\0',MAXBUFLEN);
+								sprintf(sendbuf,"Now generating %ld table items...\n",datanum);
+								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);								
+								gen_data(N);
+							}
+							else if(order.size()==2)
+							{
+								stringstream ss;
+								datanum = -1;
+								ss << order[1];
+								ss >> datanum;
+								if(datanum>0)
+								{
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Now generating %ld table items...\n",datanum);
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+									gen_data(datanum);
+								}
+								else
+								{
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Invalid command. Data number is invalid.\n");
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+								}								
+							}
+
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Finish generating %ld table items.\n",datanum);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							order.clear();
+
+						}
+						else if(order[0].compare("readdata")==0)
+						{
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Now reading %ld table items into memory...\n",datanum);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+
+							read(VIN, mile, make, color, year);
+							read(VINOrig, mileOrig, makeOrig, colorOrig, yearOrig);
+
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Finish reading %ld table itemsinto memory.\n",datanum);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							
+							level = HASDATA;
+							
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							order.clear();
+						}						
+						else if(order[0].compare("sorting")==0)
+						{
+							read(VINSort, mileSort, makeSort, colorSort, yearSort);
+							double time  =MergeSort(mileSort);
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Sorting execution time %f second.\n", time);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
+						}
+					}
+				}
+			}
+			else if(level==HASDATA)
+            {
+                if(cmd.size()==0) //newline
+                {
+                    memset(sendbuf,'\0',MAXBUFLEN);
+                    sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+                    send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+                }
+				else
+				{
+					order = cmd_process(cmd,HASDATA,uit); //check the command and format
+                    if(order.empty())  // the command is invalid
+                    {
+						memset(sendbuf,'\0',MAXBUFLEN);
+                        sprintf(sendbuf,"Invalid command!\n");
+						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+						memset(sendbuf,'\0',MAXBUFLEN);
+						sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+                        printf("Invalid command!\n");
+						memset(sendbuf,'\0',MAXBUFLEN);
+						sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+						send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+                    }
+					// supported commands
+					else
+					{
+                        if(order[0].compare("quit")==0||order[0].compare("exit")==0)
+                        {
+                            uit->state ^= ONLINE;
+                            uit->sockfd = -1;
+                            printf("User %s quit.\n",uit->name.c_str());
+                            memset(sendbuf,'\0',MAXBUFLEN);
+                            sprintf(sendbuf,"Thank you for using Database Cracking Server.\nSee you next time.\n\n");
+                            send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+                            close(sockfd);
+                            pthread_exit(NULL);
+                        }
+                        else if(order[0].compare("help")==0||order[0].compare("?")==0)
+                        {
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"%s", cmd_list);
 							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
                         }
 						else if(order[0].compare("select")==0) // select [attribute] from [table] where [pred1] and [pred2]
@@ -484,34 +716,41 @@ void *handler(void *arg)
 							string attr = order[1];
 							string table = order[2];
 							string lop1,lop2, rop1, rop2, sign1, sign2;
-							crack2para cp2;	
-							crack3para cp3;		
-							if(order.size()==3) // no predicates: select [attr] from [table] 
+							crack2para cp2;
+							crack3para cp3;
+							if(order.size()==3) // type 0 no predicates: select [attr] from [table]
 							{
-								
+								type = 0;
+								//print all asked column data here
 							}
-							else if(order.size()==6) // only pred1: select [attr] from [table] where 
+							else if(order.size()==6) // type 1 only pred1: select [attr] from [table] where
 							{
-								lop1 = order[3];
-								sign1 = order[4];
-								rop1 = order[5];	
-								// calculate para							
-								*(cp2.mile) = mile;		
-								stringstream ss;
-								ss << rop1;
-								ss >> cp2.med;								
-							}
-							else if(order.size()==9) // pred1 and pred2
-							{
+								type = 1;
 								lop1 = order[3];
 								sign1 = order[4];
 								rop1 = order[5];
+								// calculate para
+								//cp2.mile = &mile;
+								stringstream ss;
+								ss << rop1;
+								ss >> cp2.med;
+								cp2.sign = sign1;
 								
+								pivot[0] = cp2.med;
+								signs[0] = cp2.sign;
+							}
+							else if(order.size()==9) // type 2 pred1 and pred2
+							{
+								type = 2;
+								lop1 = order[3];
+								sign1 = order[4];
+								rop1 = order[5];
+
 								lop2 = order[6];
 								sign2 = order[7];
-								rop2 = order[8];	
+								rop2 = order[8];
 								// calculate para
-								*(cp3.mile) = mile;	
+								//cp3.mile = &mile;
 								stringstream ss;
 								ss << rop1;
 								ss >> cp3.low;
@@ -519,8 +758,15 @@ void *handler(void *arg)
 								ss.str("");
 								ss << rop2;
 								ss >> cp3.high;
+								cp3.sign1 = sign1;
+								cp3.sign2 = sign2;
+								
+								pivot[0] = cp3.low;
+								pivot[1] = cp3.high;
+								signs[0] = cp3.sign1;
+								signs[1] = cp3.sign2;
 							}
-							
+
 							//create 6 threads
 							pthread_t crackers[THREADNUM];
 							int isSend = 0;
@@ -530,47 +776,51 @@ void *handler(void *arg)
 							{
 								for(int i=0;i<THREADNUM;i++)
 								{
-									// calculate posL and posR									
+									// calculate posL and posR
 									if(i!=THREADNUM-1)
 									{
 										cp2.posL = i * block;
-										cp2.posR = (i+1) * block - 1;
+										cp2.posH = (i+1) * block - 1;
 									}
 									else // the last thread
 									{
 										cp2.posL = i * block;
-										cp2.posR = mile.size() - 1;								
+										cp2.posH = mile.size() - 1;
 									}
 									if(pthread_create(&crackers[i], NULL, CrackInTwo, (void *)&cp2))
-									{																			
-										break;																	
+									{
+										break;
 									}
 									isSend++;
-								}								
+									printf("thread %d created\n",i);
+								}
 							}
 							else if(order.size()==9)
 							{
-								for(int i=0;i<THREADNUM;i++)
+								for(int i=0;i<THREADNUM2;i++)
 								{
-									if(i!=THREADNUM-1)
+									if(i!=THREADNUM2-1)
 									{
 										cp3.posL = i * block;
-										cp3.posR = (i+1) * block - 1;
+										cp3.posH = (i+1) * block - 1;
 									}
 									else // the last thread
 									{
 										cp3.posL = i * block;
-										cp3.posR = mile.size() - 1;								
-									}									
+										cp3.posH = mile.size() - 1;
+									}
 									// calculate posL and posR
+									// cout<<cp3.posL<<" "<<cp3.posH<<endl;
+									// cout <<cp3.low<<" "<<cp3.high<<endl;
 									if(pthread_create(&crackers[i], NULL, CrackInThree, (void *)&cp3))
-									{																			
-										break;																	
+									{
+										int err = errno;
+										std::cout << strerror(err) << std::endl;
+										break;
 									}
 									isSend++;
-								}								
+								}
 							}
-						
 							// join
 							void* rtn;
 							double exetime = -1;
@@ -583,38 +833,214 @@ void *handler(void *arg)
 								{
 									exetime = time;
 								}
-							}				
-							if (isSend!=THREADNUM){
-								memset(sendbuf,'\0',MAXBUFLEN);
-								sprintf(sendbuf,"Execute query fails: fail to create threads.\n");
-								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);		
-								continue;
 							}
-												
+							if(type==1)
+							{
+								if (isSend!=THREADNUM){
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Execute query fails: fail to create threads.\n");
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+									continue;
+								}
+							}
+							else if(type==2)
+							{
+								if (isSend!=THREADNUM2){
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Execute query fails: fail to create threads.\n");
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+									continue;
+								}																
+							}
+
 							// merge();
 							if(order.size()==6)
 							{
-								exetime += MergeInTwo(mile, cp2.med);
+								exetime += MergeInTwo(cp2.med);
 							}
 							else if(order.size()==6)
 							{
-								exetime += MergeInThree(mile, cp2.med);
-							}	
-							
-							// send to client query execute time	
+								exetime += MergeInThree(cp3.low, cp3.high);
+							}
+
+							// send to client query execute time
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"Execute time of the query: %f\n",exetime);
-							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);	
-							
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+
 							// for(int i=0;i<(int)queryres.size();i++)
 							// {
 								// memset(sendbuf,'\0',MAXBUFLEN);
 								// sprintf(sendbuf,"%d\n",queryres[i]);
-								// send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+								// send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
 							// }
 						}
-						 						
-						if(order.empty())
+						else if(order[0].compare("gendata")==0)
+						{
+							if(order.size()==1)
+							{
+								datanum = N;
+								memset(sendbuf,'\0',MAXBUFLEN);
+								sprintf(sendbuf,"Now generating %ld table items...\n",datanum);
+								send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);								
+								gen_data(N);
+							}
+							else if(order.size()==2)
+							{
+								stringstream ss;
+								datanum = -1;
+								ss << order[1];
+								ss >> datanum;
+								if(datanum>0)
+								{
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Now generating %ld table items...\n",datanum);
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+									gen_data(datanum);
+								}
+								else
+								{
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Invalid command. Data number is invalid.\n");
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);									
+								}								
+							}
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Finish generating %ld table items.\n",datanum);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+                            
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);                            
+						}
+						else if(order[0].compare("readdata")==0)
+						{
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Now reading %ld table items into memory...\n",datanum);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+
+							read(VIN, mile, make, color, year);
+							read(VINOrig, mileOrig, makeOrig, colorOrig, yearOrig);
+
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Finish reading %ld table itemsinto memory.\n",datanum);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+							order.clear();
+
+						}
+						else if(order[0].compare("printitem")==0)
+						{							
+							if(type == 1)
+							{							
+								stringstream ss;
+								int num;
+								ss << order[1];
+								ss >> num;
+								if(num>0 and num <=100)
+								{							
+									vector<int> resindex;
+									FindIndexTwo(mileOrig, pivot[0], signs[0], resindex);
+									int pnum;
+									if((int)resindex.size()>=num)
+									{
+										pnum = num;
+									}
+									else 
+									{
+										pnum = resindex.size();
+									}
+									for(int i=0;i<pnum;i++)
+									{
+										memset(sendbuf,'\0',MAXBUFLEN);
+										sprintf(sendbuf,"[%d] %s %d %s %s %d\n", i+1, 
+										VINOrig[ resindex[i] ].c_str(),
+										mileOrig[ resindex[i] ] ,
+										makeOrig[ resindex[i] ].c_str(),
+										colorOrig[ resindex[i] ].c_str(),
+										yearOrig[ resindex[i] ]);
+										send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+										
+										cout <<"[" << i+1 <<"] "
+											<< VINOrig[ resindex[i] ] << " "
+											<< mileOrig[ resindex[i] ] << " "
+											<< makeOrig[ resindex[i] ] << " "
+											<< colorOrig[ resindex[i] ] << " "
+											<< yearOrig[ resindex[i] ] << endl;															
+									}
+								}
+								else
+								{
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Number out of range. The supported print number is between 0 and 100.\n");
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);										
+								}
+							}
+							else if(type == 2)
+							{							
+								stringstream ss;
+								int num;
+								ss << order[1];
+								ss >> num;
+								if(num>0 and num <=100)
+								{							
+									vector<int> resindex;
+									FindIndexThree(mileOrig, pivot[0], pivot[1], signs[0], signs[1], resindex);
+									int pnum;
+									if((int)resindex.size()>=num)
+									{
+										pnum = num;
+									}
+									else 
+									{
+										pnum = resindex.size();
+									}									
+									for(int i=0;i<pnum;i++)
+									{
+										memset(sendbuf,'\0',MAXBUFLEN);
+										sprintf(sendbuf,"[%d] %s %d %s %s %d\n", i+1, 
+										VINOrig[ resindex[i] ].c_str(),
+										mileOrig[ resindex[i] ] ,
+										makeOrig[ resindex[i] ].c_str(),
+										colorOrig[ resindex[i] ].c_str(),
+										yearOrig[ resindex[i] ]);
+										send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);
+										
+										cout <<"[" << i+1 <<"] "
+											<< VINOrig[ resindex[i] ] << " "
+											<< mileOrig[ resindex[i] ] << " "
+											<< makeOrig[ resindex[i] ] << " "
+											<< colorOrig[ resindex[i] ] << " "
+											<< yearOrig[ resindex[i] ] << endl;															
+									}
+								}
+								else
+								{
+									memset(sendbuf,'\0',MAXBUFLEN);
+									sprintf(sendbuf,"Number out of range. The supported print number is between 0 and 100.\n");
+									send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);										
+								}
+							}							
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
+						}
+						else if(order[0].compare("sorting")==0)
+						{
+							read(VINSort, mileSort, makeSort, colorSort, yearSort);
+							double time  =MergeSort(mileSort);
+							memset(sendbuf,'\0',MAXBUFLEN);
+							sprintf(sendbuf,"Sorting execution time %f second.\n", time);
+							send(sockfd,(void*)(sendbuf),sizeof(sendbuf),0);							
+						}						
+						else if(order.empty())
 						{
 							memset(sendbuf,'\0',MAXBUFLEN);
 							sprintf(sendbuf,"<%s: %d>",uit->name.c_str(),++countuser);
@@ -740,7 +1166,7 @@ int main(int argc, char **argv)
 	else
 	{
 		SERVERPORT = atoi(argv[1]);  // get the server port
-	} 
+	}
 
 	server_run();
 	return 0;

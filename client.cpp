@@ -180,8 +180,8 @@ int main(int argc, char **argv)
 		perror("Insufficient parameter.\n");
 		return 1;
 	}
-	SERVERIP = argv[1];
-	SERVERPORT = argv[2];
+	// SERVERIP = argv[1];
+	// SERVERPORT = argv[2];
 	// memcpy(SERVERIP,argv[1], strlen(argv[1])); //get server IP
 	// SERVERPORT = atoi(argv[2]); //get server port
 

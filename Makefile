@@ -1,11 +1,12 @@
 #proj makefile
 CFLAG=g++ -Wall -std=c++11 -pedantic
-server: server.cpp
-	$(CFLAG) -lpthread server.cpp -o server
+all: server client
+server: server.cpp partition.h gendata.h expdata.h
+	$(CFLAG) server.cpp -o server -lpthread 
 client: client.cpp
-	g++ client.cpp -o client
+	$(CFLAG) client.cpp -o client
 demo: server client
 clean:
-	rm -f server client
+	rm -f server client CarData
 
 	

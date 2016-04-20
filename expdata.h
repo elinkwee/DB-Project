@@ -14,7 +14,7 @@ FindIndexTwo(vector<int> &mile, int med, string sign, vector<int> &temp)
 	long x=0;
 	if( sign == "=" )
 	{
-		for(x=0; x<mile.size(); ++x)
+		for(x=0; x<(int)mile.size(); ++x)
 			if( mile[x] == med )
 			{
 				temp.push_back(x);
@@ -23,7 +23,7 @@ FindIndexTwo(vector<int> &mile, int med, string sign, vector<int> &temp)
 	}
 	else if( sign == "!=" )
 	{
-		for(x=0; x<mile.size(); ++x)
+		for(x=0; x<(int)mile.size(); ++x)
 			if( mile[x] != med )
 			{
 				temp.push_back(x);
@@ -32,7 +32,7 @@ FindIndexTwo(vector<int> &mile, int med, string sign, vector<int> &temp)
 	}
 	else if( sign == "<" )
 	{
-		for(x=0; x<mile.size(); ++x)
+		for(x=0; x<(int)mile.size(); ++x)
 			if( mile[x] < med )
 			{
 				temp.push_back(x);
@@ -41,7 +41,7 @@ FindIndexTwo(vector<int> &mile, int med, string sign, vector<int> &temp)
 	}
 	else if( sign == "<=" )
 	{
-		for(x=0; x<mile.size(); ++x)
+		for(x=0; x<(int)mile.size(); ++x)
 			if( mile[x] <= med )
 			{
 				temp.push_back(x);
@@ -50,7 +50,7 @@ FindIndexTwo(vector<int> &mile, int med, string sign, vector<int> &temp)
 	}
 	else if( sign == ">" )
 	{
-		for(x=0; x<mile.size(); ++x)
+		for(x=0; x<(int)mile.size(); ++x)
 			if( mile[x] > med )
 			{
 				temp.push_back(x);
@@ -59,7 +59,7 @@ FindIndexTwo(vector<int> &mile, int med, string sign, vector<int> &temp)
 	}
 	else	// sign == ">="
 	{
-		for(x=0; x<mile.size(); ++x)
+		for(x=0; x<(int)mile.size(); ++x)
 			if( mile[x] >= med )
 			{
 				temp.push_back(x);
@@ -73,13 +73,13 @@ FindIndexThree(vector<int> &mile,
 			int low, int high, string sign1, string sign2, 
 				vector<int> &temp)
 {
-	vector<int> bucket( mile.size(), 0);
+	vector<int> bucket( (int)mile.size(), 0);
 	long x1 = 0, 
 		x2 = 0;
 	if( sign1 == "=" )
 	{
 //		cout << "a ";
-		for(x1=0; x1 < mile.size(); ++x1)
+		for(x1=0; x1 < (int)mile.size(); ++x1)
 			if( mile[x1] == low )
 			{
 				bucket[x1]++;
@@ -88,7 +88,7 @@ FindIndexThree(vector<int> &mile,
 	else if( sign1 == "!=" )
 	{
 //		cout << "b ";
-		for(x1=0; x1 < mile.size(); ++x1)
+		for(x1=0; x1 < (int)mile.size(); ++x1)
 			if( mile[x1] != low )
 			{
 				bucket[x1]++;
@@ -97,7 +97,7 @@ FindIndexThree(vector<int> &mile,
 	else if( sign1 == "<" )
 	{
 //		cout << "c ";
-		for(x1=0; x1 < mile.size(); ++x1)
+		for(x1=0; x1 < (int)mile.size(); ++x1)
 			if( mile[x1] < low )
 			{
 				bucket[x1]++;
@@ -106,7 +106,7 @@ FindIndexThree(vector<int> &mile,
 	else if( sign1 == "<=" )
 	{
 //		cout << "d ";
-		for(x1=0; x1 < mile.size(); ++x1)
+		for(x1=0; x1 < (int)mile.size(); ++x1)
 			if( mile[x1] <= low )
 			{
 				bucket[x1]++;
@@ -115,7 +115,7 @@ FindIndexThree(vector<int> &mile,
 	else if( sign1 == ">" )
 	{
 //		cout << "e ";
-		for(x1=0; x1 < mile.size(); ++x1)
+		for(x1=0; x1 < (int)mile.size(); ++x1)
 			if( mile[x1] > low )
 			{
 				bucket[x1]++;
@@ -124,7 +124,7 @@ FindIndexThree(vector<int> &mile,
 	else // sign1 == ">="
 	{
 //		cout << "f ";
-		for(x1=0; x1 < mile.size(); ++x1)
+		for(x1=0; x1 < (int)mile.size(); ++x1)
 			if( mile[x1] >= low )
 			{
 				bucket[x1]++;
@@ -134,7 +134,7 @@ FindIndexThree(vector<int> &mile,
 	if(sign2 == "=" )
 	{
 //		cout << "A ";
-		for(x2=0; x2 < mile.size(); ++x2)
+		for(x2=0; x2 < (int)mile.size(); ++x2)
 			if( mile[x2] == high )
 			{
 				bucket[x2]++;
@@ -143,7 +143,7 @@ FindIndexThree(vector<int> &mile,
 	else if(sign2 == "!=" )
 	{
 //		cout << "B ";
-		for(x2=0; x2 < mile.size(); ++x2)
+		for(x2=0; x2 < (int)mile.size(); ++x2)
 			if( mile[x2] != high )
 			{
 				bucket[x2]++;
@@ -152,7 +152,7 @@ FindIndexThree(vector<int> &mile,
 	else if(sign2 == "<" )
 	{
 //		cout << "C ";
-		for(x2=0; x2 < mile.size(); ++x2)
+		for(x2=0; x2 < (int)mile.size(); ++x2)
 			if( mile[x2] < high )
 			{
 				bucket[x2]++;
@@ -161,7 +161,7 @@ FindIndexThree(vector<int> &mile,
 	else if(sign2 == "<=" )
 	{	
 //		cout << "D ";
-		for(x2=0; x2 < mile.size(); ++x2)
+		for(x2=0; x2 < (int)mile.size(); ++x2)
 			if( mile[x2] <= high )
 			{
 				bucket[x2]++;
@@ -170,7 +170,7 @@ FindIndexThree(vector<int> &mile,
 	else if(sign2 == ">" )
 	{
 //		cout << "E ";
-		for(x2=0; x2 < mile.size(); ++x2)
+		for(x2=0; x2 < (int)mile.size(); ++x2)
 			if( mile[x2] > high )
 			{
 				bucket[x2]++;
@@ -179,7 +179,7 @@ FindIndexThree(vector<int> &mile,
 	else // sign2 == ">=" )
 	{
 //		cout << "F ";
-		for(x2=0; x2 < mile.size(); ++x2)
+		for(x2=0; x2 < (int)mile.size(); ++x2)
 			if( mile[x2] >= high )
 			{
 				bucket[x2]++;
@@ -189,7 +189,7 @@ FindIndexThree(vector<int> &mile,
 //	for(long k=0; k < bucket.size(); ++k)
 //		cout << bucket[k] << " ";
 	
-	for(long k=0; k < mile.size(); ++k)
+	for(long k=0; k < (int)mile.size(); ++k)
 		if(bucket[k] == 2)
 			temp.push_back( k );
 		
